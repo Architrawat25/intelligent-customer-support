@@ -1,0 +1,7 @@
+{
+  "model_name": "all-MiniLM-L6-v2",
+  "embedding_dimension": 384,
+  "num_faqs": 7,
+  "created_at": "2025-08-02T13:33:43.639645",
+  "version": "1.0"
+}

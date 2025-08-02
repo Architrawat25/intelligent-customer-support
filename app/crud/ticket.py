@@ -4,10 +4,16 @@ from sqlalchemy import and_, or_, desc
 from datetime import datetime, timezone
 
 from app.crud.base import CRUDBase
-from app.db.models.ticket import Ticket, TicketStatus, TicketPriority
-from app.schemas.ticket import TicketCreate, TicketUpdate
 
-class CRUDTicket(CRUDBase[Ticket, TicketCreate, TicketUpdate]):
+class CRUDTicket(CRUDBase):
+    def __init__(self):
+        # Import models locally to avoid circular imports
+        from app.db.models.ticket import Ticket, TicketStatus, TicketPriority
+        super().__init__(Ticket)
+        self.Ticket = Ticket
+        self.TicketStatus = TicketStatus
+        self.TicketPriority = TicketPriority
+
     def get_by_user(
             self,
             db: Session,
@@ -15,11 +21,12 @@ class CRUDTicket(CRUDBase[Ticket, TicketCreate, TicketUpdate]):
             user_id: str,
             skip: int = 0,
             limit: int = 100
-    ) -> List[Ticket]:
+    ) -> List:
+        """Get tickets for a specific user."""
         return (
-            db.query(Ticket)
-            .filter(Ticket.user_id == user_id)
-            .order_by(desc(Ticket.created_at))
+            db.query(self.Ticket)
+            .filter(self.Ticket.user_id == user_id)
+            .order_by(desc(self.Ticket.created_at))
             .offset(skip)
             .limit(limit)
             .all()
@@ -29,14 +36,15 @@ class CRUDTicket(CRUDBase[Ticket, TicketCreate, TicketUpdate]):
             self,
             db: Session,
             *,
-            status: TicketStatus,
+            status,
             skip: int = 0,
             limit: int = 100
-    ) -> List[Ticket]:
+    ) -> List:
+        """Get tickets by status."""
         return (
-            db.query(Ticket)
-            .filter(Ticket.status == status)
-            .order_by(desc(Ticket.created_at))
+            db.query(self.Ticket)
+            .filter(self.Ticket.status == status)
+            .order_by(desc(self.Ticket.created_at))
             .offset(skip)
             .limit(limit)
             .all()
@@ -50,33 +58,48 @@ class CRUDTicket(CRUDBase[Ticket, TicketCreate, TicketUpdate]):
             user_id: Optional[str] = None,
             skip: int = 0,
             limit: int = 100
-    ) -> List[Ticket]:
-        base_query = db.query(Ticket).filter(
+    ) -> List:
+        """Search tickets by subject or question content."""
+        base_query = db.query(self.Ticket).filter(
             or_(
-                Ticket.subject.ilike(f"%{query}%"),
-                Ticket.question.ilike(f"%{query}%"),
-                Ticket.answer.ilike(f"%{query}%")
+                self.Ticket.subject.ilike(f"%{query}%"),
+                self.Ticket.question.ilike(f"%{query}%"),
+                self.Ticket.answer.ilike(f"%{query}%")
             )
         )
 
         if user_id:
-            base_query = base_query.filter(Ticket.user_id == user_id)
+            base_query = base_query.filter(self.Ticket.user_id == user_id)
 
         return (
             base_query
-            .order_by(desc(Ticket.created_at))
+            .order_by(desc(self.Ticket.created_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
 
-    def mark_resolved(self, db: Session, *, ticket_id: str) -> Optional[Ticket]:
+    def mark_resolved(self, db: Session, *, ticket_id: str) -> Optional:
+        """Mark ticket as resolved."""
         ticket_obj = self.get(db, id=ticket_id)
         if ticket_obj:
-            ticket_obj.status = TicketStatus.RESOLVED
+            ticket_obj.status = self.TicketStatus.RESOLVED
             ticket_obj.resolved_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(ticket_obj)
         return ticket_obj
 
-ticket = CRUDTicket(Ticket)
+    def count_by_status(self, db: Session) -> dict:
+        """Get count of tickets by status."""
+        from sqlalchemy import func
+
+        result = (
+            db.query(self.Ticket.status, func.count(self.Ticket.id))
+            .group_by(self.Ticket.status)
+            .all()
+        )
+
+        return {status.value: count for status, count in result}
+
+# Create instance
+ticket = CRUDTicket()

@@ -5,24 +5,34 @@ from typing import Optional
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Intelligent Customer Support System"
     VERSION: str = "1.0.0"
-    DEBUG: bool = True  # toggle in prod
+    DEBUG: bool = True
 
+    # API
+    API_V1_STR: str = "/api/v1"
+
+    # Database
     DATABASE_URL: str = Field(
         default="sqlite:///./customer_support.db",
-        description="SQLAlchemy DB URL"
+        description="Database connection URL"
     )
 
+    # Security
     SECRET_KEY: str = Field(
-        default="CHANGE_ME",
-        description="JWT & CSRF secret"
+        default="CHANGE_ME_IN_PRODUCTION",
+        description="Secret key for JWT token generation"
     )
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
 
-    HUGGINGFACE_API_URL: str = (
-        "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    # Hugging Face
+    HUGGINGFACE_API_URL: str = Field(
+        default="https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+        description="Hugging Face inference API endpoint"
     )
-    HUGGINGFACE_API_KEY: Optional[str] = None
+    HUGGINGFACE_API_KEY: Optional[str] = Field(
+        default=None,
+        description="Hugging Face API key"
+    )
 
     class Config:
         env_file = ".env"
